@@ -146,8 +146,9 @@ void break_block(block_t *block, int break_number) {
 	int current = 1;
 	while (current < break_number) {
 		// makes new free block (second half)
-		block_t *new_block = (block_t *) ((char *) block + (total_size / 2));
-		new_block->size = total_size / 2 - META_SIZE;
+		total_size /= 2;
+		block_t *new_block = (block_t *) ((char *) block + (total_size));
+		new_block->size = total_size - META_SIZE;
 		new_block->allocated = 0;
 		new_block->prev = block;
 		new_block->next = block->next;
@@ -159,7 +160,7 @@ void break_block(block_t *block, int break_number) {
 		}
 
 		//updates original block
-		block->size = total_size / 2 - META_SIZE;
+		block->size = total_size - META_SIZE;
 		block->next = new_block;
 
 		current++;
@@ -188,7 +189,7 @@ void free_check_buddy(block_t *block) {
 
 	// to merge, before must be free and have the correct buddy address
 	if(block->prev &&(char *) block->prev >= (char *) mmap_ptr[ptr_index] && block->prev->allocated == 0) {
-		if(buddy_address == (char *) block->prev - (char *) mmap_ptr[ptr_index]) {
+		if(buddy_address == (char *) block->prev - (char *) mmap_ptr[ptr_index] && block->prev->size == block->size) {
 			block->prev->size += META_SIZE + block->size;
 			block->prev->next = block->next;
 			if(block->next) {
@@ -198,7 +199,7 @@ void free_check_buddy(block_t *block) {
 			total_blocks -= 1;
 			free_check_buddy(block);
 		}
-	} else if(block->next && block->next->allocated == 0) {
+	} else if(block->next && block->next->allocated == 0 && block->next->size == block->size) {
 		if(buddy_address == (char *) block->next - (char *) mmap_ptr[ptr_index]) {
 			block->size += META_SIZE + block->next->size;
 			block->next = block->next->next;
@@ -270,6 +271,7 @@ void *t_malloc(size_t size) {
 				second_size_mult = size_mult;
 				second_best = current;
 			}
+			current = current->next;
 		}
 		if(second_best) {
 			break_block(second_best, second_size_mult);
@@ -388,19 +390,14 @@ void *t_malloc(size_t size) {
 }
 
 void t_free(void *ptr) {
-	block_t *current = heap_head;
-	while(current) {
-		if((char *) current + META_SIZE == ptr) {
-			current->allocated = 0;
-			if(alloc_strat == BUDDY) {
-				free_check_buddy(current);
-			} else {
-				check_free(current);
-			}
-			return;
-		}
-		if(current->next == NULL) break;
-		current = current->next;
+	if(ptr == NULL) return;
+
+	block_t *block = (block_t *) ((char *) ptr - META_SIZE);
+	block->allocated = 0;
+	if(alloc_strat == BUDDY) {
+		free_check_buddy(block);
+	} else {
+		check_free(block);
 	}
 	return;
 }
