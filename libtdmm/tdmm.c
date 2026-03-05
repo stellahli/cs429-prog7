@@ -130,7 +130,11 @@ uint check_allocate_buddy(block_t *block , uint size) {
 
 	uint count = 1;
 	uint cur_block_size = block->size + META_SIZE;
-	while(cur_block_size >= (size + META_SIZE) * 2) {
+	
+	// Safety check: prevent infinite loop and overflow
+	uint max_count = 32;
+	
+	while(cur_block_size >= (size + META_SIZE) * 2 && count < max_count) {
 		cur_block_size /= 2;
 		count++;
 	}
@@ -138,12 +142,16 @@ uint check_allocate_buddy(block_t *block , uint size) {
 }
 
 void break_block(block_t *block, int break_number) {
+	if(break_number <= 1 || !block) return;  // Safety check
+	
 	int total_size = META_SIZE + block->size;
 	int current = 1;
 	while (current < break_number) {
 		// makes new free block (second half)
 		total_size /= 2;
 		block_t *new_block = (block_t *) ((char *) block + total_size);
+		if(!new_block) return;  // Prevent invalid memory access
+		
 		new_block->size = total_size - META_SIZE;
 		new_block->allocated = 0;
 		new_block->next = block->next;
@@ -184,11 +192,37 @@ void free_check_buddy(block_t *block) {
 		ptr_index = ptr_counter - 1;
 	}
 
+	// Safety check: ensure ptr_index is valid
+	if(ptr_index < 0 || ptr_index >= ptr_counter) {
+		return;
+	}
+
 	int block_size = block->size + META_SIZE;
 	uintptr_t block_address = (char *) block - (char *) mmap_ptr[ptr_index];
 	uintptr_t buddy_address = block_address ^ block_size;
+	
+	// CRITICAL: Validate buddy address is within the same mmap'd region as the block
+	// Calculate potential buddy location and verify it's in the same region
 	block_t *buddy = (block_t *) ((char *)mmap_ptr[ptr_index] + buddy_address);
-
+	
+	// Check if buddy is within the same mmap region
+	int buddy_region = -1;
+	if(ptr_index + 1 < ptr_counter) {
+		// Check against next region boundary
+		if((char *) buddy >= (char *) mmap_ptr[ptr_index] && (char *) buddy < (char *) mmap_ptr[ptr_index + 1]) {
+			buddy_region = ptr_index;
+		}
+	} else {
+		// Last region - just check it's not before the start
+		if((char *) buddy >= (char *) mmap_ptr[ptr_index]) {
+			buddy_region = ptr_index;
+		}
+	}
+	
+	// Only proceed if buddy is in the same region as block
+	if(buddy_region != ptr_index) {
+		return;
+	}
 
 	// to merge, before must be free and have the correct buddy address
 	if((block->prev == buddy || block->next == buddy) &&
