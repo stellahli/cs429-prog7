@@ -173,14 +173,15 @@ void free_check_buddy(block_t *block) {
 		return;
 	}
 
-	int ptr_index = 0;
-	if(ptr_counter != 1) {
-		while(mmap_ptr[ptr_index] && mmap_ptr[ptr_index+1]) {
-			if((char *) block >= (char *) mmap_ptr[ptr_index] && (char *) block < (char *) mmap_ptr[ptr_index+1]) {
-				break;
-			}
-			ptr_index++;
+	int ptr_index = -1;
+	for(int i = 0; i < ptr_counter - 1; i++) {
+		if((char *) block >= (char *) mmap_ptr[i] && (char *) block < (char *) mmap_ptr[i+1]) {
+			ptr_index = i;
+			break;
 		}
+	}
+	if(ptr_index == -1) {
+		ptr_index = ptr_counter - 1;
 	}
 
 	int block_size = block->size + META_SIZE;
@@ -188,8 +189,8 @@ void free_check_buddy(block_t *block) {
 	int buddy_address = block_address ^ block_size;
 
 	// to merge, before must be free and have the correct buddy address
-	if(block->prev &&(char *) block->prev >= (char *) mmap_ptr[ptr_index] && block->prev->allocated == 0) {
-		if(buddy_address == (char *) block->prev - (char *) mmap_ptr[ptr_index] && block->prev->size == block->size) {
+	if(block->prev) {
+		if(buddy_address == (char *) block->prev - (char *) mmap_ptr[ptr_index] && block->prev->size == block->size &&(char *) block->prev >= (char *) mmap_ptr[ptr_index] && block->prev->allocated == 0) {
 			block->prev->size += META_SIZE + block->size;
 			block->prev->next = block->next;
 			if(block->next) {
@@ -199,8 +200,8 @@ void free_check_buddy(block_t *block) {
 			total_blocks -= 1;
 			free_check_buddy(block);
 		}
-	} else if(block->next && block->next->allocated == 0 && block->next->size == block->size) {
-		if(buddy_address == (char *) block->next - (char *) mmap_ptr[ptr_index]) {
+	} else if(block->next) {
+		if(buddy_address == (char *) block->next - (char *) mmap_ptr[ptr_index] && block->next->allocated == 0 && block->next->size == block->size) {
 			block->size += META_SIZE + block->next->size;
 			block->next = block->next->next;
 			if(block->next) {
@@ -271,6 +272,7 @@ void *t_malloc(size_t size) {
 				second_size_mult = size_mult;
 				second_best = current;
 			}
+			if(current->next == NULL) break;
 			current = current->next;
 		}
 		if(second_best) {
@@ -278,7 +280,6 @@ void *t_malloc(size_t size) {
 			second_best->allocated = 1;
 			return (char *) second_best + META_SIZE;
 		}
-
 		expand(current, size);
 		if(current->next) {
 			size_mult = check_allocate(current->next, size);
