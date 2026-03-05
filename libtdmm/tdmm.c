@@ -70,13 +70,9 @@ void expand(block_t *end, size_t size) {
 		exit(1);
 	}
 	bytes_requested += cur_size;
-	if(alloc_strat == BUDDY) {
-		mmap_ptr[ptr_counter] = ptr;
-		ptr_counter++;
-	}
 
 	// end is free and connects, can't occur for buddy
-	if(end->allocated == 0 && ((char *) end + META_SIZE + end->size) == ptr && alloc_strat != BUDDY) {
+	if(end->allocated == 0 && ((char *) end + META_SIZE + end->size) == ptr) {
 		end->size += cur_size;
 		return;
 	}
@@ -130,7 +126,7 @@ void check_free(block_t *block) {
 // BUDDY FUNCTIONS
 
 uint check_allocate_buddy(block_t *block , uint size) {
-	if(block->size < size  || block->allocated == 1) return INT_MAX;
+	if(block->size < size) return INT_MAX;
 
 	uint count = 1;
 	uint cur_block_size = block->size + META_SIZE;
@@ -169,6 +165,7 @@ void break_block(block_t *block, int break_number) {
 }
 
 void free_check_buddy(block_t *block) {
+	if(!block || !block->allocated) return;
 	int prev_alloc = block->prev ? block->prev->allocated : 1;
 	int next_alloc = block->next ? block->next->allocated : 1;
 	if(prev_alloc == 1 && next_alloc == 1) {
@@ -187,8 +184,8 @@ void free_check_buddy(block_t *block) {
 	}
 
 	int block_size = block->size + META_SIZE;
-	int block_address = (char *) block - (char *) mmap_ptr[ptr_index];
-	int buddy_address = block_address ^ block_size;
+	uintptr_t block_address = (char *) block - (char *) mmap_ptr[ptr_index];
+	uintptr_t buddy_address = block_address ^ block_size;
 
 	// to merge, before must be free and have the correct buddy address
 	if(block->prev) {
@@ -215,6 +212,36 @@ void free_check_buddy(block_t *block) {
 			free_check_buddy(block);
 		}
 	}
+	return;
+}
+
+// calls mmap and adds to end
+void expand_buddy(block_t *end, size_t size) {
+	// TO DO : if end is free, check if mmap returns address that connects
+	// if end if allocated, just add on
+	size_t cur_size = 4096;
+	while(cur_size < size + META_SIZE) {
+		cur_size *= 2;
+	}
+
+	void *ptr = mmap(NULL, cur_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if(ptr == MAP_FAILED) {
+		fprintf(stderr, "mmap failed");
+		exit(1);
+	}
+	bytes_requested += cur_size;
+	mmap_ptr[ptr_counter] = ptr;
+	ptr_counter++;
+
+	// end doesn't connect, makes new end
+	block_t *end_new = (block_t *) ptr;
+	end_new->size = cur_size-META_SIZE;
+	end_new->prev = end;
+	end_new->next = NULL;
+	end_new->allocated = 0;
+	total_blocks+=1;
+
+	end->next = end_new;
 	return;
 }
 
@@ -284,7 +311,7 @@ void *t_malloc(size_t size) {
 			second_best->allocated = 1;
 			return (char *) second_best + META_SIZE;
 		}
-		expand(current, size);
+		expand_buddy(current, size);
 		if(current->next) {
 			size_mult = check_allocate_buddy(current->next, size);
 			break_block(current->next, size_mult);
@@ -398,6 +425,7 @@ void t_free(void *ptr) {
 	if(ptr == NULL) return;
 
 	block_t *block = (block_t *) ((char *) ptr - META_SIZE);
+	if(!block) return;
 	block->allocated = 0;
 	if(alloc_strat == BUDDY) {
 		free_check_buddy(block);

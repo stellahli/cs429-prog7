@@ -475,7 +475,7 @@ int main(int argc, char *argv[]) {
 	// testing memory utilization on average during a program run
 	// testing memory utilization as a function of time
 	uint allocations[300];
-	printf("allocations: ");
+	//printf("allocations: ");
 	/* seed PRNG so allocations differ each run */
 	srand((unsigned) time(NULL));
 	for(int i = 0; i < 300; i++) {

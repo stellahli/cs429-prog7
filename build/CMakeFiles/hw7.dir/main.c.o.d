@@ -57,4 +57,12 @@ CMakeFiles/hw7.dir/main.c.o: /u/stellali/cs429/prog7/main.c \
  /usr/include/x86_64-linux-gnu/bits/mman-map-flags-generic.h \
  /usr/include/x86_64-linux-gnu/bits/mman-linux.h \
  /usr/include/x86_64-linux-gnu/bits/mman-shared.h \
- /usr/include/x86_64-linux-gnu/bits/mman_ext.h
+ /usr/include/x86_64-linux-gnu/bits/mman_ext.h \
+ /u/stellali/cs429/prog7/libtdmm/tdmm.h \
+ /usr/include/x86_64-linux-gnu/bits/time.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
+ /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
+ /usr/include/strings.h /usr/include/time.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h \
+ /usr/include/assert.h
