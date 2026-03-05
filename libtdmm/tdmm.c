@@ -143,16 +143,17 @@ void break_block(block_t *block, int break_number) {
 	while (current < break_number) {
 		// makes new free block (second half)
 		total_size /= 2;
-		block_t *new_block = (block_t *) ((char *) block + (total_size));
+		block_t *new_block = (block_t *) ((char *) block + total_size);
 		new_block->size = total_size - META_SIZE;
 		new_block->allocated = 0;
-		new_block->prev = block;
 		new_block->next = block->next;
+		new_block->prev = block;
+		
 		total_blocks += 1; 
 
 		// updates neighbor
-		if(new_block->next) {
-			new_block->next->prev = new_block;
+		if(block->next) {
+			block->next->prev = new_block;
 		}
 
 		//updates original block
@@ -186,24 +187,25 @@ void free_check_buddy(block_t *block) {
 	int block_size = block->size + META_SIZE;
 	uintptr_t block_address = (char *) block - (char *) mmap_ptr[ptr_index];
 	uintptr_t buddy_address = block_address ^ block_size;
+	block_t *buddy = (block_t *) ((char *)mmap_ptr[ptr_index] + buddy_address);
+
 
 	// to merge, before must be free and have the correct buddy address
-	if(block->prev) {
-		if(buddy_address == (char *) block->prev - (char *) mmap_ptr[ptr_index] && block->prev->size == block->size &&(char *) block->prev >= (char *) mmap_ptr[ptr_index] && block->prev->allocated == 0) {
-			block->prev->size += META_SIZE + block->size;
-			block->prev->next = block->next;
+	if((block->prev == buddy || block->next == buddy) &&
+		buddy->allocated == 0 && (buddy->size + META_SIZE) == block_size) {
+		
+		if(block->prev == buddy) {
+			buddy->size += block_size;
+			buddy->next = block->next;
 			if(block->next) {
-				block->next->prev = block->prev;
+				block->next->prev = buddy;
 			}
-			block = block->prev;
+			block = buddy;
 			total_blocks -= 1;
 			free_check_buddy(block);
 			return;
-		}
-	}
-	if(block->next) {
-		if(buddy_address == (char *) block->next - (char *) mmap_ptr[ptr_index] && block->next->allocated == 0 && block->next->size == block->size) {
-			block->size += META_SIZE + block->next->size;
+		} else {
+			block->size += block_size;
 			block->next = block->next->next;
 			if(block->next) {
 				block->next->prev = block;
@@ -317,11 +319,6 @@ void *t_malloc(size_t size) {
 			break_block(current->next, size_mult);
 			current->next->allocated = 1;
 			return (char *) current->next + META_SIZE;
-		} else {
-			size_mult = check_allocate_buddy(current, size);
-			break_block(current, size_mult);
-			current->allocated = 1;
-			return (char *) current + META_SIZE;
 		}
 	
 	} else if(alloc_strat == FIRST_FIT) {
