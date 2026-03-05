@@ -1,0 +1,426 @@
+// ASSUMPTION: BLOCK POINTER IS POINTING TO FULL START ADDRESS
+// WHERE THE METADATA STARTS
+
+#include "tdmm.h"
+#include <limits.h>
+#include <linux/limits.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/mman.h>
+
+#define META_SIZE 24
+
+/* allocator globals */
+size_t bytes_requested = 0;
+uint total_blocks = 0;
+static block_t *heap_head = NULL;
+static alloc_strat_e alloc_strat;
+int mixed = 0;
+int ptr_counter = 0;
+void* mmap_ptr[100];
+
+
+
+int check_allocate(block_t *block, uint size) {
+	if(block->allocated == 1) return 0;
+	if(block->size < size) return 0;
+	return 1;
+}
+
+void allocate(block_t *block, uint size) {
+	// perfect size, block becomes allocated
+	if(block->size < size + META_SIZE + 4) {
+		block->allocated = 1;
+		return;
+	}
+
+	// makes new free block after allocation
+	block_t *new_block = (block_t *) ((char *) block + META_SIZE + size);
+	new_block->size = block->size - META_SIZE - size;
+	new_block->allocated = 0;
+	new_block->prev = block;
+	new_block->next = block->next;
+	total_blocks += 1; 
+
+	// updates neighbor
+	if(new_block->next) {
+		new_block->next->prev = new_block;
+	}
+
+	//updates original block
+	block->size = size;
+	block->allocated = 1;
+	block->next = new_block;
+}
+
+// calls mmap and adds to end
+void expand(block_t *end, size_t size) {
+	// TO DO : if end is free, check if mmap returns address that connects
+	// if end if allocated, just add on
+	size_t cur_size = 4096;
+	while(cur_size < size + META_SIZE) {
+		cur_size += 4096;
+	}
+
+	void *ptr = mmap(NULL, cur_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if(ptr == MAP_FAILED) {
+		fprintf(stderr, "mmap failed");
+		exit(1);
+	}
+	bytes_requested += cur_size;
+	if(alloc_strat == BUDDY) {
+		mmap_ptr[ptr_counter] = ptr;
+		ptr_counter++;
+	}
+
+	// end is free and connects, can't occur for buddy
+	if(end->allocated == 0 && ((char *) end + META_SIZE + end->size) == ptr && alloc_strat != BUDDY) {
+		end->size += cur_size;
+		return;
+	}
+
+	// end doesn't connect, makes new end
+	block_t *end_new = (block_t *) ptr;
+	end_new->size = cur_size-META_SIZE;
+	end_new->prev = end;
+	end_new->next = NULL;
+	end_new->allocated = 0;
+	total_blocks+=1;
+
+	end->next = end_new;
+	return;
+}
+
+// called when a block is freed, checks its neighbors to see if they can conjoin
+void check_free(block_t *block) {
+	if(block->prev) {
+		block_t *prev = block->prev;
+
+		// if prev and block are connected
+		if(((char *) prev + META_SIZE + prev->size) == (char *) block && prev->allocated == 0) {
+			prev->size += META_SIZE + block->size;
+			prev->next = block->next;
+			if(block->next) {
+				prev->next->prev = prev;
+			}
+			block = prev;
+			total_blocks -= 1;
+		}
+	}
+
+	// checking block and next block
+	if(block->next) {
+		block_t *next = block->next;
+
+		// if prev and block are connected
+		if(((char *) block + META_SIZE + block->size) == (char *) next && next->allocated == 0) {
+			next->prev->size += META_SIZE + next->size;
+			block->next = next->next;
+
+			if(next->next) {
+				next->next->prev = block;
+			}
+			total_blocks -= 1;
+		}
+	}
+}
+
+// BUDDY FUNCTIONS
+
+uint check_allocate_buddy(block_t *block , uint size) {
+	if(block->size < size  || block->allocated == 1) return INT_MAX;
+
+	uint count = 1;
+	uint cur_block_size = block->size + META_SIZE;
+	while(cur_block_size >= (size + META_SIZE) * 2) {
+		cur_block_size /= 2;
+		count++;
+	}
+	return count;
+}
+
+void break_block(block_t *block, int break_number) {
+	int total_size = META_SIZE + block->size;
+	int current = 1;
+	while (current < break_number) {
+		// makes new free block (second half)
+		block_t *new_block = (block_t *) ((char *) block + (total_size / 2));
+		new_block->size = total_size / 2 - META_SIZE;
+		new_block->allocated = 0;
+		new_block->prev = block;
+		new_block->next = block->next;
+		total_blocks += 1; 
+
+		// updates neighbor
+		if(new_block->next) {
+			new_block->next->prev = new_block;
+		}
+
+		//updates original block
+		block->size = total_size / 2 - META_SIZE;
+		block->next = new_block;
+
+		current++;
+	}
+	
+}
+
+void free_check_buddy(block_t *block) {
+	if(block->prev->allocated == 1 && block->next->allocated == 1) {
+		return;
+	}
+
+	int ptr_index = 0;
+	if(ptr_counter != 1) {
+		while(mmap_ptr[ptr_index] && mmap_ptr[ptr_index+1]) {
+			if((char *) block >= (char *) mmap_ptr[ptr_index] && (char *) block < (char *) mmap_ptr[ptr_index+1]) {
+				break;
+			}
+			ptr_index++;
+		}
+	}
+
+	int block_size = block->size + META_SIZE;
+	int block_address = (char *) block - (char *) mmap_ptr[ptr_index];
+	int buddy_address = block_address ^ block_size;
+
+	// to merge, before must be free and have the correct buddy address
+	if(block->prev &&(char *) block->prev >= (char *) mmap_ptr[ptr_index] && block->prev->allocated == 0) {
+		if(buddy_address == (char *) block->prev - (char *) mmap_ptr[ptr_index]) {
+			block->prev->size += META_SIZE + block->size;
+			block->prev->next = block->next;
+			if(block->next) {
+				block->next->prev = block->prev;
+			}
+			block = block->prev;
+			total_blocks -= 1;
+			free_check_buddy(block);
+		}
+	} else if(block->next && block->next->allocated == 0) {
+		if(buddy_address == (char *) block->next - (char *) mmap_ptr[ptr_index]) {
+			block->size += META_SIZE + block->next->size;
+			block->next = block->next->next;
+			if(block->next) {
+				block->next->prev = block;
+			}
+			total_blocks -= 1;
+			free_check_buddy(block);
+		}
+	}
+	return;
+}
+
+void t_init(alloc_strat_e strat) {
+	bytes_requested = 4096;
+	total_blocks = 1;
+	// TODO: Implement this
+	alloc_strat = strat;
+	if(alloc_strat == MIXED) {
+		alloc_strat = FIRST_FIT;
+		mixed = 1;
+	}
+	void *ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if(ptr == MAP_FAILED) {
+		fprintf(stderr, "mmap failed");
+		exit(1);
+	}
+
+	mmap_ptr[0] = ptr;
+	ptr_counter = 1;
+	heap_head = (block_t *) ptr;
+	heap_head->size = 4096-META_SIZE;
+	heap_head->prev = NULL;
+	heap_head->next = NULL;
+	heap_head->allocated = 0;
+}
+
+void *t_malloc(size_t size) {
+	if(heap_head == NULL) {
+		fprintf(stderr, "Allocator not instantialized");
+		exit(1);
+	}
+
+	if(size % 4 != 0) {
+		size += (4 - size % 4);
+	}
+
+	if(mixed == 1) {
+		if(alloc_strat == FIRST_FIT) {
+			alloc_strat = BEST_FIT;
+		} else if (alloc_strat == BEST_FIT) {
+			alloc_strat = WORST_FIT;
+		} else {
+			alloc_strat = FIRST_FIT;
+		}
+	}
+
+	if(alloc_strat == BUDDY) {
+		block_t *current = heap_head;
+		block_t *second_best = NULL;
+		int second_size_mult = INT_MAX;
+		int size_mult;
+		while(current) {
+			int size_mult = check_allocate_buddy(current, size);
+			if(size_mult == 1) {
+				current->allocated = 1;
+				return (char *) current + META_SIZE;
+			} else if (size_mult < second_size_mult) {
+				second_size_mult = size_mult;
+				second_best = current;
+			}
+		}
+		if(second_best) {
+			break_block(second_best, second_size_mult);
+			second_best->allocated = 1;
+			return (char *) second_best + META_SIZE;
+		}
+
+		expand(current, size);
+		if(current->next) {
+			size_mult = check_allocate(current->next, size);
+			break_block(current->next, size_mult);
+			current->next->allocated = 1;
+			return (char *) current->next + META_SIZE;
+		} else {
+			size_mult = check_allocate(current, size);
+			break_block(current, size_mult);
+			current->allocated = 1;
+			return (char *) current + META_SIZE;
+		}
+	
+	} else if(alloc_strat == FIRST_FIT) {
+		block_t *current = heap_head;
+		while(current) {
+			if(check_allocate(current, size)) {
+				allocate(current, size);
+				return (char *) current + META_SIZE;
+			}
+			if(current->next == NULL) break;
+			current = current->next;
+		}
+		expand(current, size);
+		if(current->next) {
+			allocate(current->next, size);
+			return (char *) current->next + META_SIZE;
+
+		} else {
+			allocate(current, size);
+			return (char *) current + META_SIZE;
+		}
+
+	} else if(alloc_strat == BEST_FIT) {
+		block_t *best = NULL;
+		block_t *current = heap_head;
+
+		// traverses through list
+		while(current) {
+			if(check_allocate(current, size)) {
+				if(best) {
+					if(best->size > current->size) {
+						best = current;
+					}
+				} else {
+					best = current;
+				}
+			}
+			if(current->next == NULL) break;
+			current = current->next;
+		}
+
+		// checks if block was found
+		if(best) {
+			allocate(best, size);
+			return (char *) best + META_SIZE;
+		} else {
+			expand(current, size);
+			if(current->next) {
+				allocate(current->next, size);
+				return (char *) current->next + META_SIZE;
+
+			} else {
+				allocate(current, size);
+				return (char *) current + META_SIZE;
+			}
+		}
+
+	} else if(alloc_strat == WORST_FIT) {
+		block_t *worst = NULL;
+		block_t *current = heap_head;
+
+		// traverses through list
+		while(current) {
+			if(check_allocate(current, size)) {
+				if(worst) {
+					if(worst->size < current->size) {
+						worst = current;
+					}
+				} else {
+					worst = current;
+				}
+			}
+			if(current->next == NULL) break;
+			current = current->next;
+		}
+
+		// checks if block was found
+		if(worst) {
+			allocate(worst, size);
+			return (char *) worst + META_SIZE;
+		} else {
+			expand(current, size);
+			if(current->next) {
+				allocate(current->next, size);
+				return (char *) current->next + META_SIZE;
+
+			} else {
+				allocate(current, size);
+				return (char *) current + META_SIZE;
+			}
+		}
+
+	} else {
+		fprintf(stderr, "error: stategy not implemented yet");
+		exit(1);
+	}
+
+}
+
+void t_free(void *ptr) {
+	block_t *current = heap_head;
+	while(current) {
+		if((char *) current + META_SIZE == ptr) {
+			current->allocated = 0;
+			if(alloc_strat == BUDDY) {
+				free_check_buddy(current);
+			} else {
+				check_free(current);
+			}
+			return;
+		}
+		if(current->next == NULL) break;
+		current = current->next;
+	}
+	return;
+}
+
+// METHOD USED FOR RESULTS
+double get_mem_util() {
+	uint mem_allocated = 0;
+
+	block_t *current = heap_head;
+	while(current) {
+		if(current->allocated == 1) {
+			mem_allocated += META_SIZE + current->size;
+		}
+		if(current->next == NULL) break;
+		current = current->next;
+	}
+	double percent = (double) mem_allocated / bytes_requested;
+	return percent;
+}
+
+uint get_overhead() {
+	return total_blocks * META_SIZE;
+}
