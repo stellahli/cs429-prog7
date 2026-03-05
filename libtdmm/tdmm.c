@@ -19,9 +19,8 @@ static block_t *heap_head = NULL;
 static alloc_strat_e alloc_strat;
 int mixed = 0;
 int ptr_counter = 0;
-void* mmap_ptr[100];
-
-
+void* mmap_ptr[500];
+size_t mmap_regions[500];
 
 int check_allocate(block_t *block, uint size) {
 	if(block->allocated == 1) return 0;
@@ -112,7 +111,7 @@ void check_free(block_t *block) {
 
 		// if prev and block are connected
 		if(((char *) block + META_SIZE + block->size) == (char *) next && next->allocated == 0) {
-			next->prev->size += META_SIZE + next->size;
+			block->size += META_SIZE + next->size;
 			block->next = next->next;
 
 			if(next->next) {
@@ -125,16 +124,16 @@ void check_free(block_t *block) {
 
 // BUDDY FUNCTIONS
 
-uint check_allocate_buddy(block_t *block , uint size) {
+uint check_allocate_buddy(block_t *block, size_t size) {
 	if(block->size < size || block->allocated == 1) return INT_MAX;
 
 	uint count = 1;
-	uint cur_block_size = block->size + META_SIZE;
+	size_t cur_block_size = block->size + META_SIZE;
 	
 	// Safety check: prevent infinite loop and overflow
 	uint max_count = 32;
 	
-	while(cur_block_size >= (size + META_SIZE) * 2 && count < max_count) {
+	while(cur_block_size / 2 >= (size + META_SIZE) && count < max_count) {
 		cur_block_size /= 2;
 		count++;
 	}
@@ -144,24 +143,25 @@ uint check_allocate_buddy(block_t *block , uint size) {
 void break_block(block_t *block, int break_number) {
 	if(break_number <= 1 || !block) return;  // Safety check
 	
-	int total_size = META_SIZE + block->size;
+	size_t total_size = META_SIZE + block->size;
 	int current = 1;
 	while (current < break_number) {
 		// makes new free block (second half)
 		total_size /= 2;
+		block_t *old_next = block->next;
 		block_t *new_block = (block_t *) ((char *) block + total_size);
 		if(!new_block) return;  // Prevent invalid memory access
 		
 		new_block->size = total_size - META_SIZE;
 		new_block->allocated = 0;
-		new_block->next = block->next;
+		new_block->next = old_next;
 		new_block->prev = block;
 		
 		total_blocks += 1; 
 
 		// updates neighbor
-		if(block->next) {
-			block->next->prev = new_block;
+		if(old_next) {
+			old_next->prev = new_block;
 		}
 
 		//updates original block
@@ -183,7 +183,7 @@ void free_check_buddy(block_t *block) {
 
 	int ptr_index = -1;
 	for(int i = 0; i < ptr_counter - 1; i++) {
-		if((char *) block >= (char *) mmap_ptr[i] && (char *) block < (char *) mmap_ptr[i+1]) {
+		if((char *) block >= (char *) mmap_ptr[i] && (char *) block < (char *) mmap_ptr[i] + mmap_regions[i]) {
 			ptr_index = i;
 			break;
 		}
@@ -197,31 +197,17 @@ void free_check_buddy(block_t *block) {
 		return;
 	}
 
-	int block_size = block->size + META_SIZE;
+	size_t block_size = block->size + META_SIZE;
 	uintptr_t block_address = (char *) block - (char *) mmap_ptr[ptr_index];
 	uintptr_t buddy_address = block_address ^ block_size;
 	
-	// CRITICAL: Validate buddy address is within the same mmap'd region as the block
+	// Validate buddy address is within the same mmap'd region as the block
 	// Calculate potential buddy location and verify it's in the same region
 	block_t *buddy = (block_t *) ((char *)mmap_ptr[ptr_index] + buddy_address);
 	
 	// Check if buddy is within the same mmap region
-	int buddy_region = -1;
-	if(ptr_index + 1 < ptr_counter) {
-		// Check against next region boundary
-		if((char *) buddy >= (char *) mmap_ptr[ptr_index] && (char *) buddy < (char *) mmap_ptr[ptr_index + 1]) {
-			buddy_region = ptr_index;
-		}
-	} else {
-		// Last region - just check it's not before the start
-		if((char *) buddy >= (char *) mmap_ptr[ptr_index]) {
-			buddy_region = ptr_index;
-		}
-	}
-	
-	// Only proceed if buddy is in the same region as block
-	if(buddy_region != ptr_index) {
-		return;
+	if((char *) buddy < (char *) mmap_ptr[ptr_index] || (char *) buddy >= (char *) mmap_ptr[ptr_index] + mmap_regions[ptr_index]) {
+		return; // Buddy is out of bounds, cannot merge
 	}
 
 	// to merge, before must be free and have the correct buddy address
@@ -267,6 +253,7 @@ void expand_buddy(block_t *end, size_t size) {
 	}
 	bytes_requested += cur_size;
 	mmap_ptr[ptr_counter] = ptr;
+	mmap_regions[ptr_counter] = cur_size;
 	ptr_counter++;
 
 	// end doesn't connect, makes new end
@@ -297,6 +284,7 @@ void t_init(alloc_strat_e strat) {
 	}
 
 	mmap_ptr[0] = ptr;
+	mmap_regions[0] = 4096;
 	ptr_counter = 1;
 	heap_head = (block_t *) ptr;
 	heap_head->size = 4096-META_SIZE;
@@ -449,7 +437,7 @@ void *t_malloc(size_t size) {
 		fprintf(stderr, "error: stategy not implemented yet");
 		exit(1);
 	}
-
+	return NULL;
 }
 
 void t_free(void *ptr) {

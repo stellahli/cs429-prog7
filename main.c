@@ -472,6 +472,8 @@ void test_best_fit_strategy() {
 
 int main(int argc, char *argv[]) {
 
+	printf("sizeof(block_t) = %zu\n", sizeof(block_t));
+
 	// testing memory utilization on average during a program run
 	// testing memory utilization as a function of time
 	uint allocations[300];

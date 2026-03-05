@@ -37,7 +37,7 @@ void expand(block_t *end, size_t size);
 void check_free(block_t *block);
 
 // buddy helper methods
-uint check_allocate_buddy(block_t *block , uint size);
+uint check_allocate_buddy(block_t *block , size_t size);
 void break_block(block_t *block, int break_number);
 void free_check_buddy(block_t *block);
 
