@@ -169,7 +169,9 @@ void break_block(block_t *block, int break_number) {
 }
 
 void free_check_buddy(block_t *block) {
-	if(block->prev->allocated == 1 && block->next->allocated == 1) {
+	int prev_alloc = block->prev ? block->prev->allocated : 1;
+	int next_alloc = block->next ? block->next->allocated : 1;
+	if(prev_alloc == 1 && next_alloc == 1) {
 		return;
 	}
 
@@ -199,8 +201,10 @@ void free_check_buddy(block_t *block) {
 			block = block->prev;
 			total_blocks -= 1;
 			free_check_buddy(block);
+			return;
 		}
-	} else if(block->next) {
+	}
+	if(block->next) {
 		if(buddy_address == (char *) block->next - (char *) mmap_ptr[ptr_index] && block->next->allocated == 0 && block->next->size == block->size) {
 			block->size += META_SIZE + block->next->size;
 			block->next = block->next->next;
@@ -262,9 +266,9 @@ void *t_malloc(size_t size) {
 		block_t *current = heap_head;
 		block_t *second_best = NULL;
 		int second_size_mult = INT_MAX;
-		int size_mult;
+		uint size_mult;
 		while(current) {
-			int size_mult = check_allocate_buddy(current, size);
+			size_mult = check_allocate_buddy(current, size);
 			if(size_mult == 1) {
 				current->allocated = 1;
 				return (char *) current + META_SIZE;
@@ -282,12 +286,12 @@ void *t_malloc(size_t size) {
 		}
 		expand(current, size);
 		if(current->next) {
-			size_mult = check_allocate(current->next, size);
+			size_mult = check_allocate_buddy(current->next, size);
 			break_block(current->next, size_mult);
 			current->next->allocated = 1;
 			return (char *) current->next + META_SIZE;
 		} else {
-			size_mult = check_allocate(current, size);
+			size_mult = check_allocate_buddy(current, size);
 			break_block(current, size_mult);
 			current->allocated = 1;
 			return (char *) current + META_SIZE;
