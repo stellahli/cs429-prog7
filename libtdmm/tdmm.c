@@ -126,7 +126,7 @@ void check_free(block_t *block) {
 // BUDDY FUNCTIONS
 
 uint check_allocate_buddy(block_t *block , uint size) {
-	if(block->size < size) return INT_MAX;
+	if(block->size < size || block->allocated == 1) return INT_MAX;
 
 	uint count = 1;
 	uint cur_block_size = block->size + META_SIZE;
@@ -165,7 +165,7 @@ void break_block(block_t *block, int break_number) {
 }
 
 void free_check_buddy(block_t *block) {
-	if(!block || !block->allocated) return;
+	if(!block) return;
 	int prev_alloc = block->prev ? block->prev->allocated : 1;
 	int next_alloc = block->next ? block->next->allocated : 1;
 	if(prev_alloc == 1 && next_alloc == 1) {
