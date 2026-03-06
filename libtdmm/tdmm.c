@@ -155,7 +155,7 @@ void break_block(block_t *block, int break_number) {
 	if(ptr_index < 0) return;  // Block not in any mmap region
 	
 	size_t total_size = META_SIZE + block->size;
-	int current = 0;
+	int current = 1;
 	while (current < break_number) {
 		// makes new free block (second half)
 		total_size /= 2;
