@@ -182,7 +182,7 @@ void free_check_buddy(block_t *block) {
 	}
 
 	int ptr_index = -1;
-	for(int i = 0; i < ptr_counter - 1; i++) {
+	for(int i = 0; i < ptr_counter; i++) {
 		if((char *) block >= (char *) mmap_ptr[i] && (char *) block < (char *) mmap_ptr[i] + mmap_regions[i]) {
 			ptr_index = i;
 			break;
@@ -224,7 +224,7 @@ void free_check_buddy(block_t *block) {
 			total_blocks -= 1;
 			free_check_buddy(block);
 			return;
-		} else {
+		} else if (block->next == buddy) {
 			block->size += block_size;
 			block->next = block->next->next;
 			if(block->next) {
