@@ -21,172 +21,185 @@ void metric_test_1_2_4(uint allocations[]) {
 	double percent = 0.0; 				// holds current %mem util
 	uint calls = 0;
 
-	// double first_fit[600]; 			// %mem average
-	// double first_fit_percent[600]; 	// %mem at point
-	// void *first_fit_ptr[300];		// pointers returned
-	// uint first_overhead[600];			
+	double first_fit[600]; 			// %mem average
+	double first_fit_percent[600]; 	// %mem at point
+	void *first_fit_ptr[300];		// pointers returned
+	uint first_overhead[600];			
 
-	// t_init(FIRST_FIT);
-	// double first_total = 0.0;
-	// for(int j = 0; j < 6; j++) {
-	// 	for(int i = 0; i < 50; i++) {
-	// 		first_fit_ptr[i + j*50] = t_malloc(allocations[i + j*50]);
-	// 		calls++;
-	// 		percent = get_mem_util() * 100;
-	// 		first_fit_percent[calls-1] = percent;
-	// 		first_total += percent;
-	// 		first_fit[calls-1] = first_total / calls;
-	// 		first_overhead[calls-1] = get_overhead();
-	// 	}
-	// 	// calling free
-	// 	for(int i = 0; i < 25; i++) {
-	// 		t_free(first_fit_ptr[i + j*50]);
-	// 		calls++;
-	// 		percent = get_mem_util() * 100;
-	// 		first_total += percent;
-	// 		first_fit[calls-1] = first_total / calls;
-	// 		first_fit_percent[calls-1] = percent;
-	// 		first_overhead[calls-1] = get_overhead();
-	// 	}
-	// }
-	// // calling free for the rest of the mallocated blocks
-	// for(int j = 0; j < 6; j++) {
-	// 	for(int i = 0; i < 25; i++) {
-	// 		t_free(first_fit_ptr[i + 25 + j*50]);
-	// 		calls++;
-	// 		first_fit[calls-1] = first_total / calls;
-	// 		first_fit_percent[calls-1] = get_mem_util()*100;
-	// 		first_overhead[calls-1] = get_overhead();
-	// 	}
-	// }
+	t_init(FIRST_FIT);
+	double first_total = 0.0;
+	for(int j = 0; j < 6; j++) {
+		for(int i = 0; i < 50; i++) {
+			first_fit_ptr[i + j*50] = t_malloc(allocations[i + j*50]);
+			calls++;
+			percent = get_mem_util() * 100;
+			first_fit_percent[calls-1] = percent;
+			first_total += percent;
+			first_fit[calls-1] = first_total / calls;
+			first_overhead[calls-1] = get_overhead();
+		}
+		// calling free
+		for(int i = 0; i < 25; i++) {
+			t_free(first_fit_ptr[i + j*50]);
+			calls++;
+			percent = get_mem_util() * 100;
+			first_total += percent;
+			first_fit[calls-1] = first_total / calls;
+			first_fit_percent[calls-1] = percent;
+			first_overhead[calls-1] = get_overhead();
+		}
+	}
+	// calling free for the rest of the mallocated blocks
+	for(int j = 0; j < 6; j++) {
+		for(int i = 0; i < 25; i++) {
+			t_free(first_fit_ptr[i + 25 + j*50]);
+			calls++;
+			first_fit[calls-1] = first_total / calls;
+			first_fit_percent[calls-1] = get_mem_util()*100;
+			first_overhead[calls-1] = get_overhead();
+		}
+	}
 
 
-	// percent = 0.0; 				// holds current %mem util
-	// calls = 0;
+	percent = 0.0; 				// holds current %mem util
+	calls = 0;
 
-	// double best_fit[600]; 			// %mem average
-	// double best_fit_percent[600]; 	// %mem at point
-	// void *best_fit_ptr[300];		// pointers returned
-	// uint best_overhead[600];			
+	double best_fit[600]; 			// %mem average
+	double best_fit_percent[600]; 	// %mem at point
+	void *best_fit_ptr[300];		// pointers returned
+	uint best_overhead[600];			
 
-	// t_init(BEST_FIT);
-	// double best_total = 0.0;
-	// for(int j = 0; j < 6; j++) {
-	// 	for(int i = 0; i < 50; i++) {
-	// 		best_fit_ptr[i + j*50] = t_malloc(allocations[i + j*50]);
-	// 		calls++;
-	// 		percent = get_mem_util() * 100;
-	// 		best_fit_percent[calls-1] = percent;
-	// 		best_total += percent;
-	// 		best_fit[calls-1] = best_total / calls;
-	// 		best_overhead[calls-1] = get_overhead();
-	// 	}
-	// 	// calling free
-	// 	for(int i = 0; i < 25; i++) {
-	// 		t_free(best_fit_ptr[i + j*50]);
-	// 		calls++;
-	// 		percent = get_mem_util() * 100;
-	// 		best_total += percent;
-	// 		best_fit[calls-1] = best_total / calls;
-	// 		best_fit_percent[calls-1] = percent;
-	// 		best_overhead[calls-1] = get_overhead();
-	// 	}
-	// }
-	// // calling free for the rest of the mallocated blocks
-	// for(int j = 0; j < 6; j++) {
-	// 	for(int i = 0; i < 25; i++) {
-	// 		t_free(best_fit_ptr[i + 25 + j*50]);
-	// 		calls++;
-	// 		best_fit[calls-1] = best_total / calls;
-	// 		best_fit_percent[calls-1] = get_mem_util() * 100;
-	// 		best_overhead[calls-1] = get_overhead();
-	// 	}
-	// }
+	t_init(BEST_FIT);
+	double best_total = 0.0;
+	for(int j = 0; j < 6; j++) {
+		for(int i = 0; i < 50; i++) {
+			best_fit_ptr[i + j*50] = t_malloc(allocations[i + j*50]);
+			calls++;
+			percent = get_mem_util() * 100;
+			best_fit_percent[calls-1] = percent;
+			best_total += percent;
+			best_fit[calls-1] = best_total / calls;
+			best_overhead[calls-1] = get_overhead();
+		}
+		// calling free
+		for(int i = 0; i < 25; i++) {
+			t_free(best_fit_ptr[i + j*50]);
+			calls++;
+			percent = get_mem_util() * 100;
+			best_total += percent;
+			best_fit[calls-1] = best_total / calls;
+			best_fit_percent[calls-1] = percent;
+			best_overhead[calls-1] = get_overhead();
+		}
+	}
+	// calling free for the rest of the mallocated blocks
+	for(int j = 0; j < 6; j++) {
+		for(int i = 0; i < 25; i++) {
+			t_free(best_fit_ptr[i + 25 + j*50]);
+			calls++;
+			best_fit[calls-1] = best_total / calls;
+			best_fit_percent[calls-1] = get_mem_util() * 100;
+			best_overhead[calls-1] = get_overhead();
+		}
+	}
 
-	// percent = 0.0; 				// holds current %mem util
-	// calls = 0;
+	percent = 0.0; 				// holds current %mem util
+	calls = 0;
 
-	// double worst_fit[600]; 			// %mem average
-	// double worst_fit_percent[600]; 	// %mem at point
-	// void *worst_fit_ptr[300];		// pointers returned
-	// uint worst_overhead[600];			
+	double worst_fit[600]; 			// %mem average
+	double worst_fit_percent[600]; 	// %mem at point
+	void *worst_fit_ptr[300];		// pointers returned
+	uint worst_overhead[600];			
 
-	// t_init(WORST_FIT);
-	// double worst_total = 0.0;
-	// for(int j = 0; j < 6; j++) {
-	// 	for(int i = 0; i < 50; i++) {
-	// 		worst_fit_ptr[i + j*50] = t_malloc(allocations[i + j*50]);
-	// 		calls++;
-	// 		percent = get_mem_util() * 100;
-	// 		worst_fit_percent[calls-1] = percent;
-	// 		worst_total += percent;
-	// 		worst_fit[calls-1] = worst_total / calls;
-	// 		worst_overhead[calls-1] = get_overhead();
-	// 	}
-	// 	// calling free
-	// 	for(int i = 0; i < 25; i++) {
-	// 		t_free(worst_fit_ptr[i + j*50]);
-	// 		calls++;
-	// 		percent = get_mem_util() * 100;
-	// 		worst_total += percent;
-	// 		worst_fit[calls-1] = worst_total / calls;
-	// 		worst_fit_percent[calls-1] = percent;
-	// 		worst_overhead[calls-1] = get_overhead();
-	// 	}
-	// }
-	// // calling free for the rest of the mallocated blocks
-	// for(int j = 0; j < 6; j++) {
-	// 	for(int i = 0; i < 25; i++) {
-	// 		t_free(worst_fit_ptr[i + 25 + j*50]);
-	// 		calls++;
-	// 		worst_fit[calls-1] = worst_total / calls;
-	// 		worst_fit_percent[calls-1] = get_mem_util() *100;
-	// 		worst_overhead[calls-1] = get_overhead();
-	// 	}
-	// }percent = 0.0; 				// holds current %mem util
-	// calls = 0;
+	t_init(WORST_FIT);
+	double worst_total = 0.0;
+	for(int j = 0; j < 6; j++) {
+		for(int i = 0; i < 50; i++) {
+			worst_fit_ptr[i + j*50] = t_malloc(allocations[i + j*50]);
+			calls++;
+			percent = get_mem_util() * 100;
+			worst_fit_percent[calls-1] = percent;
+			worst_total += percent;
+			worst_fit[calls-1] = worst_total / calls;
+			worst_overhead[calls-1] = get_overhead();
+		}
+		// calling free
+		for(int i = 0; i < 25; i++) {
+			t_free(worst_fit_ptr[i + j*50]);
+			calls++;
+			percent = get_mem_util() * 100;
+			worst_total += percent;
+			worst_fit[calls-1] = worst_total / calls;
+			worst_fit_percent[calls-1] = percent;
+			worst_overhead[calls-1] = get_overhead();
+		}
+	}
+	// calling free for the rest of the mallocated blocks
+	for(int j = 0; j < 6; j++) {
+		for(int i = 0; i < 25; i++) {
+			t_free(worst_fit_ptr[i + 25 + j*50]);
+			calls++;
+			worst_fit[calls-1] = worst_total / calls;
+			worst_fit_percent[calls-1] = get_mem_util() *100;
+			worst_overhead[calls-1] = get_overhead();
+		}
+	}percent = 0.0; 				// holds current %mem util
+	calls = 0;
 
-	// double mixed_fit[600]; 			// %mem average
-	// double mixed_fit_percent[600]; 	// %mem at point
-	// void *mixed_fit_ptr[300];		// pointers returned
-	// uint mixed_overhead[600];			
+	double mixed_fit[600]; 			// %mem average
+	double mixed_fit_percent[600]; 	// %mem at point
+	void *mixed_fit_ptr[300];		// pointers returned
+	uint mixed_overhead[600];			
 
-	// t_init(MIXED);
-	// double mixed_total = 0.0;
-	// for(int j = 0; j < 6; j++) {
-	// 	for(int i = 0; i < 50; i++) {
-	// 		mixed_fit_ptr[i + j*50] = t_malloc(allocations[i + j*50]);
-	// 		calls++;
-	// 		percent = get_mem_util() * 100;
-	// 		mixed_fit_percent[calls-1] = percent;
-	// 		mixed_total += percent;
-	// 		mixed_fit[calls-1] = mixed_total / calls;
-	// 		mixed_overhead[calls-1] = get_overhead();
-	// 	}
-	// 	// calling free
-	// 	for(int i = 0; i < 25; i++) {
-	// 		t_free(mixed_fit_ptr[i + j*50]);
-	// 		calls++;
-	// 		percent = get_mem_util() * 100;
-	// 		mixed_total += percent;
-	// 		mixed_fit[calls-1] = mixed_total / calls;
-	// 		mixed_fit_percent[calls-1] = percent;
-	// 		mixed_overhead[calls-1] = get_overhead();
-	// 	}
-	// }
-	// // calling free for the rest of the mallocated blocks
-	// for(int j = 0; j < 6; j++) {
-	// 	for(int i = 0; i < 25; i++) {
-	// 		t_free(mixed_fit_ptr[i + 25 + j*50]);
-	// 		calls++;
-	// 		mixed_fit[calls-1] = mixed_total / calls;
-	// 		mixed_fit_percent[calls-1] = get_mem_util() * 100;
-	// 		mixed_overhead[calls-1] = get_overhead();
-	// 	}
-	// }
+	t_init(MIXED);
+	double mixed_total = 0.0;
+	for(int j = 0; j < 6; j++) {
+		for(int i = 0; i < 50; i++) {
+			mixed_fit_ptr[i + j*50] = t_malloc(allocations[i + j*50]);
+			calls++;
+			percent = get_mem_util() * 100;
+			mixed_fit_percent[calls-1] = percent;
+			mixed_total += percent;
+			mixed_fit[calls-1] = mixed_total / calls;
+			mixed_overhead[calls-1] = get_overhead();
+		}
+		// calling free
+		for(int i = 0; i < 25; i++) {
+			t_free(mixed_fit_ptr[i + j*50]);
+			calls++;
+			percent = get_mem_util() * 100;
+			mixed_total += percent;
+			mixed_fit[calls-1] = mixed_total / calls;
+			mixed_fit_percent[calls-1] = percent;
+			mixed_overhead[calls-1] = get_overhead();
+		}
+	}
+	// calling free for the rest of the mallocated blocks
+	for(int j = 0; j < 6; j++) {
+		for(int i = 0; i < 25; i++) {
+			t_free(mixed_fit_ptr[i + 25 + j*50]);
+			calls++;
+			mixed_fit[calls-1] = mixed_total / calls;
+			mixed_fit_percent[calls-1] = get_mem_util() * 100;
+			mixed_overhead[calls-1] = get_overhead();
+		}
+	}
 
-	// percent = 0.0; 				// holds current %mem util
-	// calls = 0;
+	FILE *fptr;
+	fptr = fopen("test124.csv", "w");
+	fprintf(fptr, "allocation,first_avg,first_mem_point,first_overhead,best_avg,best_mem_point,best_overhead,worst_avg,worst_mem_point,worst_overhead,mixed_avg,mixed_mem_point,mixed_overhead,buddy_avg,buddy_mem_point,buddy_overhead\n");
+	uint size = 1;
+	for(int i = 0; i < 600; i++) {
+		fprintf(fptr,"%u,%f,%f,%u,%f,%f,%u,%f,%f,%u,%f,%f,%u\n", i, first_fit[i],first_fit_percent[i], first_overhead[i],best_fit[i],best_fit_percent[i], best_overhead[i],worst_fit[i],worst_fit_percent[i], worst_overhead[i],
+		mixed_fit[i],mixed_fit_percent[i], mixed_overhead[i]);
+	}
+
+	fclose(fptr);
+}
+
+void metric_test_1_2_4_buddy(uint allocations[]) {
+	double percent = 0.0; 				// holds current %mem util
+	uint calls = 0;
 
 	double buddy_fit[600]; 			// %mem average
 	double buddy_fit_percent[600]; 	// %mem at point
@@ -233,21 +246,15 @@ void metric_test_1_2_4(uint allocations[]) {
 	}
 
 	FILE *fptr;
-	fptr = fopen("test124.csv", "w");
-	fprintf(fptr, "allocation,first_avg,first_mem_point,first_overhead,best_avg,best_mem_point,best_overhead,worst_avg,worst_mem_point,worst_overhead,mixed_avg,mixed_mem_point,mixed_overhead,buddy_avg,buddy_mem_point,buddy_overhead\n");
+	fptr = fopen("test124_buddy.csv", "w");
+	fprintf(fptr, "allocation,buddy_avg,buddy_mem_point,buddy_overhead\n");
 	uint size = 1;
-	// for(int i = 0; i < 600; i++) {
-	// 	fprintf(fptr,"%u,%f,%f,%u,%f,%f,%u,%f,%f,%u,%f,%f,%u,%f,%f,%u\n", i, first_fit[i],first_fit_percent[i], first_overhead[i],best_fit[i],best_fit_percent[i], best_overhead[i],worst_fit[i],worst_fit_percent[i], worst_overhead[i],
-	// 	mixed_fit[i],mixed_fit_percent[i], mixed_overhead[i],buddy_fit[i],buddy_fit_percent[i], buddy_overhead[i]);
-	// }
 	for(int i = 0; i < 600; i++) {
 		fprintf(fptr,"%u,%f,%f,%u\n", i, buddy_fit[i],buddy_fit_percent[i], buddy_overhead[i]);
 	}
 
 	fclose(fptr);
 }
-
-
 
 void metric_test_3() {
 	struct timespec start, end;
@@ -481,12 +488,6 @@ void test_best_fit_strategy() {
 
 int main(int argc, char *argv[]) {
 
-	printf("sizeof(block_t) = %zu\n", sizeof(block_t));
-
-	t_init(BUDDY);
-	t_malloc(4096);
-	fprintf(stderr, "memory utilization is %f", get_mem_util_buddy());
-
 	// testing memory utilization on average during a program run
 	// testing memory utilization as a function of time
 	uint allocations[300];
@@ -496,10 +497,11 @@ int main(int argc, char *argv[]) {
 	for(int i = 0; i < 300; i++) {
 		allocations[i] = (rand() % 1048576) + 1; 		// maxes at 10240, 10KiB
 	}
+	metric_test_1_2_4_buddy(allocations);
 	metric_test_1_2_4(allocations);
 
 	// testing tmalloc() and tfree() speed as a function of size
-	//metric_test_3();
+	metric_test_3();
 
 	// printf("Unit Tests\n");
     // printf("-------------------------------------------\n");
