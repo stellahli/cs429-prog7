@@ -40,6 +40,7 @@ void check_free(block_t *block);
 uint check_allocate_buddy(block_t *block , size_t size);
 void break_block(block_t *block, int break_number);
 void free_check_buddy(block_t *block);
+size_t get_power_of_2(size_t number);
 
 // testing helper methods
 double get_mem_util();
