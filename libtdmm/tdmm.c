@@ -155,10 +155,11 @@ void break_block(block_t *block, int break_number) {
 	if(ptr_index < 0) return;  // Block not in any mmap region
 	
 	size_t total_size = META_SIZE + block->size;
-	int current = 1;
+	int current = 0;
 	while (current < break_number) {
 		// makes new free block (second half)
 		total_size /= 2;
+		fprintf(stderr, "breaking block, new size %lu \n", total_size);
 		block_t *old_next = block->next;
 		char *candidate = ((char *) block + total_size);
 		
@@ -173,6 +174,7 @@ void break_block(block_t *block, int break_number) {
 		
 		new_block->size = total_size - META_SIZE;
 		new_block->allocated = 0;
+		new_block->requested = 0;
 		new_block->next = old_next;
 		new_block->prev = block;
 		
@@ -282,6 +284,7 @@ void expand_buddy(block_t *end, size_t size) {
 	end_new->prev = end;
 	end_new->next = NULL;
 	end_new->allocated = 0;
+	end_new->requested = 0;
 	total_blocks+=1;
 
 	end->next = end_new;
@@ -344,6 +347,7 @@ void *t_malloc(size_t size) {
 			if(size_mult == 1) {
 				current->allocated = 1;
 				current->requested = (uint) size;
+				fprintf(stderr, "requested updated, %u", current->requested);
 				return (char *) current + META_SIZE;
 			} else if (size_mult < second_size_mult) {
 				second_size_mult = size_mult;
@@ -353,17 +357,19 @@ void *t_malloc(size_t size) {
 			current = current->next;
 		}
 		if(second_best) {
+			fprintf(stderr, "break block has been called at second_best, second size mult : %u", second_size_mult);
 			break_block(second_best, second_size_mult);
 			second_best->allocated = 1;
 			second_best->requested = (uint) size;
+			fprintf(stderr, "requested updated, %u", current->requested);
 			return (char *) second_best + META_SIZE;
 		}
+		fprintf(stderr, "calling expand buddy");
 		expand_buddy(current, size);
 		if(current->next) {
-			size_mult = check_allocate_buddy(current->next, size);
-			break_block(current->next, size_mult);
 			current->next->allocated = 1;
 			current->next->requested = (uint) size;
+			fprintf(stderr, "requested updated, %u\n", current->next->requested);
 			return (char *) current->next + META_SIZE;
 		}
 	
@@ -472,7 +478,7 @@ void t_free(void *ptr) {
 	block->allocated = 0;
 	if(alloc_strat == BUDDY) {
 		block->requested = 0;
-		//free_check_buddy(block);
+		free_check_buddy(block);
 	} else {
 		check_free(block);
 	}
@@ -501,12 +507,14 @@ double get_mem_util_buddy() {
 	block_t *current = heap_head;
 	while(current) {
 		if(current->allocated == 1) {
-			mem_allocated += META_SIZE + current->size;
+			//fprintf(stderr, "smth is allocated, requested is %u,", current->requested);
+			mem_allocated += current->requested;
 		}
 		if(current->next == NULL) break;
 		current = current->next;
 	}
-	double percent = (double) mem_allocated / bytes_requested;
+	fprintf(stderr, "\n done: mem allocated is %u, bytes requested is %lu\n", mem_allocated, bytes_requested);
+	double percent = ((double) mem_allocated) / bytes_requested;
 	return percent;
 }
 
