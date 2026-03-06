@@ -297,7 +297,7 @@ void t_init(alloc_strat_e strat) {
 	// TODO: Implement this
 	alloc_strat = strat;
 	if(alloc_strat == MIXED) {
-		alloc_strat = FIRST_FIT;
+		alloc_strat = WORST_FIT;
 		mixed = 1;
 	}
 	void *ptr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

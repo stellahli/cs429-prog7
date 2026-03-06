@@ -67,27 +67,56 @@ void test_heap_expansion() {
     printf("Passed\n\n");
 }
 
-void test_best_fit_strategy() {
-    printf("Running test_best_fit_strategy...\n");
+void test_strategies(alloc_strat_e strat, int type) {
+    printf("Running test_strategy %u...\n", type);
 
-    t_init(BEST_FIT);
+    t_init(strat);
 
-    void *p1 = t_malloc(100);
-    void *p2 = t_malloc(100);
-    void *p3 = t_malloc(500);
-    void *p4 = t_malloc(100);
+    void *p1 = t_malloc(200);
+    void *expected_first = t_malloc(400);
+    void *p2 = t_malloc(200);
+    void *h1 = t_malloc(800);
+    void *p3 = t_malloc(200);
+    void *expected_best = t_malloc(200);
+    void *p4 = t_malloc(200);
+    void *expected_worst = t_malloc(100);
 
-    t_free(p1);
-    t_free(p3);
+    t_free(expected_first);
+    t_free(h1);
+    t_free(expected_best);
+    t_free(expected_worst);
 
-    void *p_new = t_malloc(50);
-    assert(p_new != NULL);
+    void *actual = t_malloc(100);
+
+    // FIRST
+    if(type == 1) {
+        assert(actual == expected_first);
+        void *actual2 = t_malloc(750);
+        assert(actual2 == h1); 
+        void *actual3 = t_malloc(300); 
+        assert(actual3 == expected_worst);
+    } else if (type == 2) { // BEST
+        assert(actual == expected_best);
+        void *actual2 = t_malloc(900); 
+        assert(actual2 == expected_worst); 
+        void *actual3 = t_malloc(200); 
+        assert(actual3 == expected_first);
+    } else if (type == 3) { // WORST
+        assert(actual == expected_worst);
+    } else { // mixed
+        assert(actual == expected_worst); // worst
+        void *actual2 = t_malloc(300); // first
+        assert(actual2 == expected_first); 
+        void *actual3 = t_malloc(400); // best
+        assert(actual3 == h1);
+    }
 
     printf("Passed\n\n");
 }
 
+// checks for seg faulting
 void test_buddy() {
-    printf("Running test_buddy_allocator...\n");
+    printf("Running test_strategy_buddy...\n");
 
     t_init(BUDDY);
 
@@ -157,7 +186,10 @@ int main() {
     test_basic_allocation();
     test_free_and_coalesce();
     test_heap_expansion();
-    test_best_fit_strategy();
+    test_strategies(FIRST_FIT, 1);
+    test_strategies(BEST_FIT, 2);
+    test_strategies(WORST_FIT, 3);
+    test_strategies(MIXED, 4);
     test_buddy();
 
     printf("All tests passed.\n\n");

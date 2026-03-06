@@ -411,7 +411,7 @@ int main(int argc, char *argv[]) {
 	/* seed PRNG so allocations differ each run */
 	srand((unsigned) time(NULL));
 	for(int i = 0; i < 300; i++) {
-		allocations[i] = (rand() % 1048576) + 1; 		// maxes at 10240, 10KiB
+		allocations[i] = (rand() % 1048576) + 1; 		// maxes at 1048576, 1MB
 	}
 	metric_test_1_2_4_buddy(allocations);
 	metric_test_1_2_4(allocations);
