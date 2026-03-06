@@ -7,10 +7,11 @@
 #include <stdio.h>
 #include <sys/mman.h>
 
-#define META_SIZE 24
+#define META_SIZE 32
 
 typedef struct Block {
 	uint size;				// 4 bytes, size w/o metadata
+  uint requested;   // 4 bytes, size actually requested
 	int allocated; 			// 4 bytes, 1 is allocated, 0 is free
 	struct Block *next;		// 8 bytes
 	struct Block *prev; 	// 8 bytes
@@ -40,7 +41,8 @@ void check_free(block_t *block);
 uint check_allocate_buddy(block_t *block , size_t size);
 void break_block(block_t *block, int break_number);
 void free_check_buddy(block_t *block);
-size_t get_power_of_2(size_t number);
+double get_mem_util_buddy();
+
 
 // testing helper methods
 double get_mem_util();

@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 
-#define META_SIZE 24
+#define META_SIZE 32
 
 /* allocator globals */
 size_t bytes_requested = 0;
@@ -124,21 +124,11 @@ void check_free(block_t *block) {
 
 // BUDDY FUNCTIONS
 
-size_t get_power_of_2(size_t number) {
-	size_t value = 1;
-	while(value < number) {
-		value *= 2;
-	}
-	return value;
-}
-
-// sees if size will fit in block
 uint check_allocate_buddy(block_t *block, size_t size) {
 	if(block->size < size || block->allocated == 1) return INT_MAX;
 
 	uint count = 1;
 	size_t cur_block_size = block->size + META_SIZE;
-	cur_block_size = get_power_of_2(cur_block_size);
 	
 	// Safety check: prevent infinite loop and overflow
 	uint max_count = 32;
@@ -190,11 +180,6 @@ void free_check_buddy(block_t *block) {
 	if(prev_alloc == 1 && next_alloc == 1) {
 		return;
 	}
-
-	// updates block size to be the correct power of 2
-	size_t block_allocated = block->size + META_SIZE;
-	block_allocated = get_power_of_2(block_allocated);
-	block->size = block_allocated - META_SIZE;
 
 	int ptr_index = -1;
 	for(int i = 0; i < ptr_counter; i++) {
@@ -306,6 +291,7 @@ void t_init(alloc_strat_e strat) {
 	heap_head->prev = NULL;
 	heap_head->next = NULL;
 	heap_head->allocated = 0;
+	heap_head->requested = 0;
 }
 
 void *t_malloc(size_t size) {
@@ -337,7 +323,7 @@ void *t_malloc(size_t size) {
 			size_mult = check_allocate_buddy(current, size);
 			if(size_mult == 1) {
 				current->allocated = 1;
-				current->size = size;
+				current->requested = (uint) size;
 				return (char *) current + META_SIZE;
 			} else if (size_mult < second_size_mult) {
 				second_size_mult = size_mult;
@@ -349,7 +335,7 @@ void *t_malloc(size_t size) {
 		if(second_best) {
 			break_block(second_best, second_size_mult);
 			second_best->allocated = 1;
-			second_best->size = size;
+			second_best->requested = (uint) size;
 			return (char *) second_best + META_SIZE;
 		}
 		expand_buddy(current, size);
@@ -357,7 +343,7 @@ void *t_malloc(size_t size) {
 			size_mult = check_allocate_buddy(current->next, size);
 			break_block(current->next, size_mult);
 			current->next->allocated = 1;
-			current->next->size = size;
+			current->next->requested = (uint) size;
 			return (char *) current->next + META_SIZE;
 		}
 	
@@ -465,6 +451,7 @@ void t_free(void *ptr) {
 	if(!block) return;
 	block->allocated = 0;
 	if(alloc_strat == BUDDY) {
+		block->requested = 0;
 		free_check_buddy(block);
 	} else {
 		check_free(block);
@@ -480,6 +467,21 @@ double get_mem_util() {
 	while(current) {
 		if(current->allocated == 1) {
 			mem_allocated += current->size;
+		}
+		if(current->next == NULL) break;
+		current = current->next;
+	}
+	double percent = (double) mem_allocated / bytes_requested;
+	return percent;
+}
+
+double get_mem_util_buddy() {
+	uint mem_allocated = 0;
+
+	block_t *current = heap_head;
+	while(current) {
+		if(current->allocated == 1) {
+			mem_allocated += META_SIZE + current->size;
 		}
 		if(current->next == NULL) break;
 		current = current->next;
