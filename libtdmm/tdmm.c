@@ -472,7 +472,7 @@ void t_free(void *ptr) {
 	block->allocated = 0;
 	if(alloc_strat == BUDDY) {
 		block->requested = 0;
-		free_check_buddy(block);
+		//free_check_buddy(block);
 	} else {
 		check_free(block);
 	}
