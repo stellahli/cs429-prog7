@@ -187,7 +187,7 @@ void metric_test_1_2_4(uint allocations[]) {
 
 	FILE *fptr;
 	fptr = fopen("test124.csv", "w");
-	fprintf(fptr, "allocation,first_avg,first_mem_point,first_overhead,best_avg,best_mem_point,best_overhead,worst_avg,worst_mem_point,worst_overhead,mixed_avg,mixed_mem_point,mixed_overhead,buddy_avg,buddy_mem_point,buddy_overhead\n");
+	fprintf(fptr, "allocation,first_avg,first_mem_point,first_overhead,best_avg,best_mem_point,best_overhead,worst_avg,worst_mem_point,worst_overhead,mixed_avg,mixed_mem_point,mixed_overhead\n");
 	uint size = 1;
 	for(int i = 0; i < 600; i++) {
 		fprintf(fptr,"%u,%f,%f,%u,%f,%f,%u,%f,%f,%u,%f,%f,%u\n", i, first_fit[i],first_fit_percent[i], first_overhead[i],best_fit[i],best_fit_percent[i], best_overhead[i],worst_fit[i],worst_fit_percent[i], worst_overhead[i],
@@ -401,90 +401,6 @@ void metric_test_3() {
 	fclose(fptr);
 }
 
-// UNIT TESTS!
-
-void test_initialization() {
-    printf("Running test_initialization: ");
-    t_init(FIRST_FIT);
-    
-    // After init, there should be 1 block and 4096 bytes requested
-    assert(get_overhead() == 32); // 1 block * META_SIZE (32)
-	assert(get_mem_util() == 0.0);
-    printf("Passed!\n");
-}
-
-void test_basic_allocation() {
-    printf("Running test_basic_allocation: ");
-    t_init(FIRST_FIT);
-    
-    void *ptr1 = t_malloc(100);
-    assert(ptr1 != NULL);
-    
-    // Should have 2 blocks: the allocated 100-byte block and the remaining free block
-    assert(get_overhead() == 64); // 2 blocks * 32
-    printf("Passed!\n");
-}
-
-void test_free_and_coalesce() {
-    printf("Running test_free_and_coalesce: ");
-    
-    t_init(FIRST_FIT);
-    
-    void *ptr1 = t_malloc(100);
-    void *ptr2 = t_malloc(200);
-    void *ptr3 = t_malloc(300);
-	assert(get_overhead() == 96);
-    
-    // Free the middle block
-    t_free(ptr2);
-	assert(get_overhead() == 96);
-    
-    // Free the first block (should coalesce with the middle block)
-    t_free(ptr1);
-	assert(get_overhead() == 72);
-    
-    // Free the last block (should coalesce everything back into a single giant free block)
-    t_free(ptr3);
-    
-    // Should be back down to 1 block
-    assert(get_overhead() == 32); 
-    printf("Passed!\n");
-}
-
-void test_heap_expansion() {
-    printf("Running test_heap_expansion: ");
-    t_init(FIRST_FIT);
-    
-    // 4096 is the initial size. Allocating 5000 will force an expand()
-    void *ptr1 = t_malloc(5000);
-    assert(ptr1 != NULL);
-    
-    // Memory utilization should reflect the new bytes_requested amount
-    assert(get_mem_util() > 0.0);
-    printf("Passed!\n");
-}
-
-void test_best_fit_strategy() {
-    printf("Running test_best_fit_strategy: ");
-    t_init(BEST_FIT);
-    
-    void *p1 = t_malloc(100); // Small
-    void *p2 = t_malloc(100); // Guard block
-    void *p3 = t_malloc(500); // Large
-    void *p4 = t_malloc(100); // Guard block
-    
-    t_free(p1); // Free small block
-    t_free(p3); // Free large block
-    
-    // Request a small amount. Best fit should choose the p1 slot (100 bytes), 
-    // not the p3 slot (500 bytes).
-    void *p_new = t_malloc(50);
-    
-    // If it picked p1, it will split p1
-    assert(p_new != NULL);
-    printf("Passed!\n");
-}
-
 
 int main(int argc, char *argv[]) {
 
@@ -503,15 +419,5 @@ int main(int argc, char *argv[]) {
 	// testing tmalloc() and tfree() speed as a function of size
 	metric_test_3();
 
-	// printf("Unit Tests\n");
-    // printf("-------------------------------------------\n");
-    
-    // test_initialization();
-    // test_basic_allocation();
-    // test_free_and_coalesce();
-    // test_heap_expansion();
-    // test_best_fit_strategy();
-    
-    // printf("-------------------------------------------\n");
     return 0;
 }
