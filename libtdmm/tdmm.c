@@ -143,6 +143,16 @@ uint check_allocate_buddy(block_t *block, size_t size) {
 void break_block(block_t *block, int break_number) {
 	if(break_number <= 1 || !block) return;  // Safety check
 	
+	// Find which mmap region this block belongs to
+	int ptr_index = -1;
+	for(int i = 0; i < ptr_counter; i++) {
+		if((char *) block >= (char *) mmap_ptr[i] && (char *) block < (char *) mmap_ptr[i] + mmap_regions[i]) {
+			ptr_index = i;
+			break;
+		}
+	}
+	if(ptr_index < 0) return;  // Block not in any mmap region
+	
 	size_t total_size = META_SIZE + block->size;
 	int current = 1;
 	while (current < break_number) {
@@ -150,6 +160,12 @@ void break_block(block_t *block, int break_number) {
 		total_size /= 2;
 		block_t *old_next = block->next;
 		block_t *new_block = (block_t *) ((char *) block + total_size);
+		
+		// makes sure new_block stays within the same mmap region
+		if((char *) new_block < (char *) mmap_ptr[ptr_index] || (char *) new_block >= (char *) mmap_ptr[ptr_index] + mmap_regions[ptr_index]) {
+			return;  // Cannot split further without exceeding region bounds
+		}
+		
 		if(!new_block) return;  // Prevent invalid memory access
 		
 		new_block->size = total_size - META_SIZE;
