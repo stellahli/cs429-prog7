@@ -21,8 +21,6 @@ int mixed = 0;
 int ptr_counter = 0;
 void* mmap_ptr[500];
 size_t mmap_regions[500];
-size_t malloc_requested = 0;
-size_t allocated_blocks = 0;
 
 int check_allocate(block_t *block, uint size) {
 	if(block->allocated == 1) return 0;
@@ -34,7 +32,6 @@ void allocate(block_t *block, uint size) {
 	// perfect size, block becomes allocated
 	if(block->size < size + META_SIZE + 4) {
 		block->allocated = 1;
-		allocated_blocks += 1;
 		return;
 	}
 
@@ -54,7 +51,6 @@ void allocate(block_t *block, uint size) {
 	//updates original block
 	block->size = size;
 	block->allocated = 1;
-	allocated_blocks += 1;
 	block->next = new_block;
 }
 
@@ -275,8 +271,6 @@ void expand_buddy(block_t *end, size_t size) {
 void t_init(alloc_strat_e strat) {
 	bytes_requested = 4096;
 	total_blocks = 1;
-	allocated_blocks = 0;
-	malloc_requested = 0;
 	// TODO: Implement this
 	alloc_strat = strat;
 	if(alloc_strat == MIXED) {
@@ -319,8 +313,6 @@ void *t_malloc(size_t size) {
 		}
 	}
 
-	malloc_requested += size;
-
 	if(alloc_strat == BUDDY) {
 		block_t *current = heap_head;
 		block_t *second_best = NULL;
@@ -330,7 +322,6 @@ void *t_malloc(size_t size) {
 			size_mult = check_allocate_buddy(current, size);
 			if(size_mult == 1) {
 				current->allocated = 1;
-				allocated_blocks += 1;
 				return (char *) current + META_SIZE;
 			} else if (size_mult < second_size_mult) {
 				second_size_mult = size_mult;
@@ -342,7 +333,6 @@ void *t_malloc(size_t size) {
 		if(second_best) {
 			break_block(second_best, second_size_mult);
 			second_best->allocated = 1;
-			allocated_blocks += 1;
 			return (char *) second_best + META_SIZE;
 		}
 		expand_buddy(current, size);
@@ -350,7 +340,6 @@ void *t_malloc(size_t size) {
 			size_mult = check_allocate_buddy(current->next, size);
 			break_block(current->next, size_mult);
 			current->next->allocated = 1;
-			allocated_blocks += 1;
 			return (char *) current->next + META_SIZE;
 		}
 	
@@ -457,7 +446,6 @@ void t_free(void *ptr) {
 	block_t *block = (block_t *) ((char *) ptr - META_SIZE);
 	if(!block) return;
 	block->allocated = 0;
-	allocated_blocks -= 1;
 	if(alloc_strat == BUDDY) {
 		free_check_buddy(block);
 	} else {
@@ -468,8 +456,17 @@ void t_free(void *ptr) {
 
 // METHOD USED FOR RESULTS
 double get_mem_util() {
-	size_t allocated = malloc_requested;
-	double percent = (double) allocated / bytes_requested;
+	uint mem_allocated = 0;
+
+	block_t *current = heap_head;
+	while(current) {
+		if(current->allocated == 1) {
+			mem_allocated += current->size;
+		}
+		if(current->next == NULL) break;
+		current = current->next;
+	}
+	double percent = (double) mem_allocated / bytes_requested;
 	return percent;
 }
 
