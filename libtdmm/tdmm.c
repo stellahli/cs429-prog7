@@ -367,6 +367,8 @@ void *t_malloc(size_t size) {
 		fprintf(stderr, "calling expand buddy");
 		expand_buddy(current, size);
 		if(current->next) {
+			size_mult = check_allocate_buddy(current->next, size);
+			break_block(current->next, size_mult);
 			current->next->allocated = 1;
 			current->next->requested = (uint) size;
 			fprintf(stderr, "requested updated, %u\n", current->next->requested);
