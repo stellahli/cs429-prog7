@@ -19,8 +19,8 @@ static block_t *heap_head = NULL;
 static alloc_strat_e alloc_strat;
 int mixed = 0;
 int ptr_counter = 0;
-void* mmap_ptr[500];
-size_t mmap_regions[500];
+void* mmap_ptr[1000];
+size_t mmap_regions[1000];
 
 int check_allocate(block_t *block, uint size) {
 	if(block->allocated == 1) return 0;
@@ -56,6 +56,7 @@ void allocate(block_t *block, uint size) {
 
 // calls mmap and adds to end
 void expand(block_t *end, size_t size) {
+	if(end == NULL) return;
 	// TO DO : if end is free, check if mmap returns address that connects
 	// if end if allocated, just add on
 	size_t cur_size = 4096;
@@ -159,13 +160,15 @@ void break_block(block_t *block, int break_number) {
 		// makes new free block (second half)
 		total_size /= 2;
 		block_t *old_next = block->next;
-		block_t *new_block = (block_t *) ((char *) block + total_size);
+		char *candidate = ((char *) block + total_size);
 		
 		// makes sure new_block stays within the same mmap region
-		if((char *) new_block < (char *) mmap_ptr[ptr_index] || (char *) new_block >= (char *) mmap_ptr[ptr_index] + mmap_regions[ptr_index]) {
+		if(candidate < (char *) mmap_ptr[ptr_index] || candidate >= (char *) mmap_ptr[ptr_index] + mmap_regions[ptr_index]) {
 			return;  // Cannot split further without exceeding region bounds
 		}
-		
+
+		block_t *new_block = (block_t *)candidate;
+
 		if(!new_block) return;  // Prevent invalid memory access
 		
 		new_block->size = total_size - META_SIZE;
@@ -255,6 +258,7 @@ void free_check_buddy(block_t *block) {
 
 // calls mmap and adds to end
 void expand_buddy(block_t *end, size_t size) {
+	if(end == NULL) return;
 	// TO DO : if end is free, check if mmap returns address that connects
 	// if end if allocated, just add on
 	size_t cur_size = 4096;
